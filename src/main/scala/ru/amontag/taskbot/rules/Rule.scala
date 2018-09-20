@@ -19,6 +19,34 @@ package ru.amontag.taskbot.rules
 
 import ru.amontag.taskbot.classifier.Task
 
+
+object Parser extends Parser {
+    override val name: String = "common"
+
+    override def parse(body: String): Option[Rule] = ???
+}
+
+trait Parser {
+    val name: String
+
+    def isCorrespondToRule(nameToken: String): Boolean = nameToken.equals(name)
+
+    def parse(body: String): Option[Rule]
+
+    def removeBraces(tok: String): String = {
+        assert(tok.startsWith("(") && tok.endsWith(")"))
+        tok.substring(1, tok.length - 1).trim
+    }
+
+    def getNameAndThreshold(tok: String): (String, Double) = {
+        tok.split(":").toList match {
+            case n :: threshold :: Nil => (n, threshold.toDouble)
+            case n => (n, 1.0)
+            case _ => throw new IllegalArgumentException()
+        }
+    }
+}
+
 trait Rule {
     val name: String
 
@@ -29,18 +57,13 @@ trait Rule {
     def apply(task: Task): Boolean = predict(task) >= threshold
 }
 
-case class Or(threshold: Double, subrules: Seq[Rule]) extends Rule {
-    override val name: String = "or"
+object TaskFieldParser {
+    val tokenName: String = "field"
 
-    override def predict(task: Task): Double = subrules.map(_.predict(task)).sum
-}
-
-case class And(threshold: Double, subrules: Seq[Rule]) extends Rule {
-    override val name: String = "and"
-
-    override def predict(task: Task): Double = subrules.map(_.predict(task)).product
-}
-
-object Rule {
-    def parse(line: String): Rule = ???
+    def apply(token: String): Task => String = token.toLowerCase match {
+        case "header" => _.header
+        case "description" => _.description
+        case "files" => _.files.mkString(",")
+        case _ => throw new IllegalArgumentException()
+    }
 }
