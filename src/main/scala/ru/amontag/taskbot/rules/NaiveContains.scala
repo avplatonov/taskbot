@@ -22,32 +22,41 @@ import ru.amontag.taskbot.classifier.Task
 object NaiveContainsParser extends Parser {
     override val name: String = "naive-contains"
 
-    /**
-      * rule text should correspond to this construction: (<rule_name>:threshold, (field <field-name>), (tokens t1,t2,...))
-      */
-    override def parse(body: String): Option[Rule] = {
-        val tokens = removeBraces(body).split(",").map(_.toLowerCase.trim).toList
-        tokens match {
-            case nameWithTreshold :: fieldToken :: wordTokens :: Nil =>
-                val (name, threshold) = getNameAndThreshold(nameWithTreshold)
-                assert(name.equals(this.name))
-                val fieldKeyword :: fieldName :: Nil = removeBraces(fieldToken).split(" ").toList
-                val tokensKeyword :: words :: Nil = removeBraces(wordTokens).split(" ").toList
-                assert(fieldKeyword.equals(TaskFieldParser.tokenName))
-                assert(tokensKeyword.equals("tokens"))
-                Some(NaiveContains(threshold, words, TaskFieldParser(fieldName)))
-            case _ => None
+    private val FIELD = "field"
+    private val WORDS = "words"
+
+    private val format = "(naive-contains[:threshold] (field <field-name>) (words <t1>[, <t2>]*))"
+
+    override def parse(body: String): Either[Throwable, Rule] = {
+        splitBySpaces(body).map(_.toList) match {
+            case Right(fieldNameTok :: wordsToken :: Nil) =>
+                val fieldNameTokSpltd = removeBraces(fieldNameTok).split(' ').toList
+                val wordsTokSpltd = removeBraces(wordsToken).replaceAll(",\\s+", ",").split(' ').toList
+                if(fieldNameTokSpltd.size != 2 || wordsTokSpltd.size != 2 ||
+                    !fieldNameTokSpltd.head.equals(FIELD) || !wordsTokSpltd.head.equals(WORDS))
+
+                    return invalidFormat(body)
+                else {
+                    val _ :: fieldName :: Nil = fieldNameTokSpltd
+                    val _ :: words :: Nil = wordsTokSpltd
+                    return TaskFieldParser(fieldName).map(NaiveContains(words.split(',').toSet, _))
+                }
+
+            case _ => invalidFormat(body)
         }
     }
+
+    private def invalidFormat(body: String): Either[Throwable, Rule] =
+        Left(new IllegalArgumentException(s"Action format is invalid: use $format [body: $body]"))
 }
 
-case class NaiveContains(threshold: Double, str: String, fieldExtractor: Task => String) extends Rule {
-    private val words: Set[String] = str.split(",").toSet
-
+case class NaiveContains(words: Set[String], fieldExtractor: Task => String, threshold: Double = 1.0) extends Rule {
     override val name: String = "naive_contains"
 
     override def predict(task: Task): Double = {
         val text = fieldExtractor(task)
         words.count(w => text.contains(w)).toDouble / words.size
     }
+
+    override def withThreshold(value: Double): Rule = copy(threshold = value)
 }

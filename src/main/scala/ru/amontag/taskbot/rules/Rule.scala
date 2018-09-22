@@ -19,11 +19,55 @@ package ru.amontag.taskbot.rules
 
 import ru.amontag.taskbot.classifier.Task
 
+import scala.collection.mutable
 
-object Parser extends Parser {
+object CommonParser extends Parser {
     override val name: String = "common"
 
-    override def parse(body: String): Option[Rule] = ???
+    private val actionParsers: Map[String, Parser] = List(
+        NaiveContainsParser,
+        OrParser,
+        AndParser
+    ).map(p => p.name -> p).toMap
+
+    override def parse(body: String): Either[Throwable, Rule] = {
+        splitOntoActionNameAndBody(removeBraces(removeBreaks(body))) match {
+            case Right(((actionName, threshold), actionBody)) =>
+                actionParsers.get(actionName)
+                    .map(p => p.parse(actionBody))
+                    .map(p => p.map(_.withThreshold(threshold)))
+                    .getOrElse(Left(new IllegalArgumentException(s"Cannot find action for body '$body'")))
+            case Left(e) => Left(e)
+        }
+    }
+
+    def main(args: Array[String]): Unit = {
+        println(CommonParser.parse(
+            "(or:0.5 \n\t(naive-contains \n\t\t(field header) \n\t\t(words aa, vv, 11)) \n\t(and \n\t\t(naive-contains \n\t\t\t(field header) \n\t\t\t(words aa, vv, 11)) \n\t\t(naive-contains \n\t\t\t(field header) \n\t\t\t(words aa, vv, 11))))"
+        ))
+    }
+
+    private def prepareBody(body: String): String = removeBraces(removeBreaks(body))
+
+    private def removeBreaks(body: String) = body.replaceAll("\\s+", " ")
+
+    private def splitOntoActionNameAndBody(tok: String): Either[Throwable, ((String, Double), String)] = {
+        splitBySpaces(tok) match {
+            case Right(actionNameWithThreshold :: _) =>
+                Right((getActionName(actionNameWithThreshold), tok.substring(actionNameWithThreshold.length).trim))
+            case Left(e) => Left(e)
+        }
+
+
+    }
+
+    private def getActionName(tok: String): (String, Double) = {
+        tok.split(":").toList match {
+            case n :: threshold :: Nil => (n.trim, threshold.toDouble)
+            case n :: Nil => (n.trim, 1.0)
+            case _ => throw new IllegalArgumentException()
+        }
+    }
 }
 
 trait Parser {
@@ -31,20 +75,66 @@ trait Parser {
 
     def isCorrespondToRule(nameToken: String): Boolean = nameToken.equals(name)
 
-    def parse(body: String): Option[Rule]
+    def parse(body: String): Either[Throwable, Rule]
 
-    def removeBraces(tok: String): String = {
-        assert(tok.startsWith("(") && tok.endsWith(")"))
+    protected def removeBraces(tok: String): String = {
+        assert(tok.startsWith("(") && tok.endsWith(")"), tok)
         tok.substring(1, tok.length - 1).trim
     }
 
-    def getNameAndThreshold(tok: String): (String, Double) = {
-        tok.split(":").toList match {
-            case n :: threshold :: Nil => (n, threshold.toDouble)
-            case n => (n, 1.0)
-            case _ => throw new IllegalArgumentException()
+    protected def splitBySpaces(body: String): Either[Throwable, List[String]] = {
+        var cntOfOpenedBraces = 0
+        var result = mutable.Buffer[String]()
+        var currentToken = new mutable.StringBuilder()
+        for (ch <- body.trim) {
+            if(cntOfOpenedBraces < 0)
+                return Left(new IllegalArgumentException(s"Invalid body format [$body]"))
+
+            ch match {
+                case ' ' if cntOfOpenedBraces == 0 =>
+                    result += currentToken.toString()
+                    currentToken.clear()
+                case _ => {
+                    ch match {
+                        case '(' => cntOfOpenedBraces = cntOfOpenedBraces + 1
+                        case ')' => cntOfOpenedBraces = cntOfOpenedBraces - 1
+                        case _ =>
+                    }
+
+                    currentToken += ch
+                }
+            }
+        }
+
+        result += currentToken.toString()
+        cntOfOpenedBraces match {
+            case 0 => Right(result.toList)
+            case _ => Left(new IllegalArgumentException(s"Invalid body format [$body]"))
         }
     }
+}
+
+trait SetOfRulesParser extends Parser {
+    def parse(body: String): Either[Throwable, Rule] = {
+        splitBySpaces(body)
+            .map(_.map(_.trim))
+            .map(_.map(CommonParser.parse)) match {
+
+            case l@Left(e) => Left(e)
+            case Right(rules) =>
+                if (rules.isEmpty)
+                    return Left(new IllegalArgumentException(s"There is no body in string '$body'"))
+
+                rules.find(_.isLeft) match {
+                    case Some(left) => return left
+                    case _ => buildRule(rules.map({
+                        case Right(rule) => rule
+                    }))
+                }
+        }
+    }
+
+    protected def buildRule(rules: Seq[Rule]): Either[Throwable, Rule]
 }
 
 trait Rule {
@@ -55,15 +145,17 @@ trait Rule {
     def predict(task: Task): Double
 
     def apply(task: Task): Boolean = predict(task) >= threshold
+
+    def withThreshold(value: Double): Rule
 }
 
 object TaskFieldParser {
     val tokenName: String = "field"
 
-    def apply(token: String): Task => String = token.toLowerCase match {
-        case "header" => _.header
-        case "description" => _.description
-        case "files" => _.files.mkString(",")
-        case _ => throw new IllegalArgumentException()
+    def apply(token: String): Either[Throwable, Task => String] = token.toLowerCase match {
+        case "header" => Right(_.header)
+        case "description" => Right(_.description)
+        case "files" => Right(_.files.mkString(","))
+        case _ => Left(new IllegalArgumentException(s"Cannot find field with name '$token'"))
     }
 }

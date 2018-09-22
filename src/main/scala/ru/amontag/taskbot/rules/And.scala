@@ -20,28 +20,18 @@ package ru.amontag.taskbot.rules
 import ru.amontag.taskbot.classifier.Task
 
 /**
-  * (and:threshold (rule) (rule) ... (rule))
+  * (and:threshold, (rule), (rule), ... (rule))
   */
-object AndParser extends Parser {
+object AndParser extends SetOfRulesParser {
     override val name: String = "and"
 
-    override def parse(body: String): Option[Rule] = {
-        removeBraces(body).split(" ").map(_.toLowerCase().trim).toList match {
-            case ruleNameWithTreshold :: rulesStrings if rulesStrings.nonEmpty =>
-                getNameAndThreshold(ruleNameWithTreshold) match {
-                    case ("and", threshold) =>
-                        val rules = rulesStrings.map(Parser.parse)
-                        assert(rules.forall(_.isDefined))
-                        Some(And(threshold, rules.flatten))
-                    case _ => None
-                }
-            case _ => None
-        }
-    }
+    override protected def buildRule(rules: Seq[Rule]): Either[Throwable, Rule] = Right(And(rules))
 }
 
-case class And(threshold: Double, subrules: Seq[Rule]) extends Rule {
+case class And(subrules: Seq[Rule], threshold: Double = 1.0) extends Rule {
     override val name: String = "and"
 
     override def predict(task: Task): Double = subrules.map(_.predict(task)).product
+
+    override def withThreshold(value: Double): Rule = copy(threshold = value)
 }
