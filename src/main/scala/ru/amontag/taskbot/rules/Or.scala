@@ -20,7 +20,7 @@ package ru.amontag.taskbot.rules
 import ru.amontag.taskbot.classifier.Task
 
 /**
-  * (or:threshold, (rule), (rule), ... (rule))
+  * (or[:threshold] (rule) (rule) ... (rule))
   */
 object OrParser extends SetOfRulesParser {
     override val name: String = "or"
@@ -31,7 +31,7 @@ object OrParser extends SetOfRulesParser {
 case class Or(subrules: Seq[Rule], threshold: Double = 1.0) extends Rule {
     override val name: String = "or"
 
-    override def predict(task: Task): Double = subrules.map(_.predict(task)).sum
+    override def predict(task: Task): Double = subrules.map(_.predict(task)).sum / subrules.size
 
     override def withThreshold(value: Double): Rule = copy(threshold = value)
 }

@@ -20,7 +20,7 @@ package ru.amontag.taskbot.rules
 import ru.amontag.taskbot.classifier.Task
 
 /**
-  * (and:threshold, (rule), (rule), ... (rule))
+  * (and[:threshold] (rule) (rule) ... (rule))
   */
 object AndParser extends SetOfRulesParser {
     override val name: String = "and"
