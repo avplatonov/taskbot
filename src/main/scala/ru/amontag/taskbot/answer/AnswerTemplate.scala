@@ -19,10 +19,29 @@ package ru.amontag.taskbot.answer
 
 import ru.amontag.taskbot.classifier.Task
 
+case class TemplateNotFoundException(name: String) extends RuntimeException
+
+object AnswerTemplate {
+    private val templates: Map[String, AnswerTemplate] = List[AnswerTemplate](
+        StupidAnswer("ваша заявка очень важна для нас, мы приняли её в работу")
+    ).map(x => x.name -> x).toMap
+
+    def apply(name: String): Either[Exception, AnswerTemplate] = {
+        templates.get(name) match {
+            case Some(template) => Right(template)
+            case None => Left(TemplateNotFoundException(name))
+        }
+    }
+}
+
 trait AnswerTemplate {
+    def name: String
+
     def buildAnswer(task: Task): String
 }
 
-object AnswerTemplate {
-    def parse(template: String): AnswerTemplate = ???
+case class StupidAnswer(text: String) extends AnswerTemplate {
+    override def name: String = "stupid"
+
+    override def buildAnswer(task: Task): String = text
 }
