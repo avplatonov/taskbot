@@ -18,6 +18,8 @@
 package ru.amontag.taskbot.rules
 
 import ru.amontag.taskbot.classifier.Task
+import ru.amontag.taskbot.rules.dict.NaiveContainsParser
+import ru.amontag.taskbot.rules.dict.mystem.MystemRuleParser
 
 import scala.collection.mutable
 
@@ -25,6 +27,7 @@ object CommonParser extends Parser {
     override val name: String = "common"
 
     private val actionParsers: Map[String, Parser] = List(
+        MystemRuleParser,
         NaiveContainsParser,
         OrParser,
         AndParser
@@ -43,7 +46,7 @@ object CommonParser extends Parser {
 
     def main(args: Array[String]): Unit = {
         println(CommonParser.parse(
-            "(or:0.5 \n\t(naive-contains \n\t\t(field header) \n\t\t(words aa, vv, 11)) \n\t(and \n\t\t(naive-contains \n\t\t\t(field header) \n\t\t\t(words aa, vv, 11)) \n\t\t(naive-contains \n\t\t\t(field header) \n\t\t\t(words aa, vv, 11))))"
+            "(or:0.5 \n\t(naive-contains \n\t\t(field header) \n\t\t(words мама мыла раму холодной тряпкой)) \n\t(and \n\t\t(morph-contains \n\t\t\t(field description) \n\t\t\t(words мама мыла раму холодной тряпкой)) \n\t\t(naive-contains \n\t\t\t(field header) \n\t\t\t(words aa, vv, 11))))"
         ))
     }
 
