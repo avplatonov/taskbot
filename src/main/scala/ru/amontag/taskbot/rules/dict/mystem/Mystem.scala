@@ -48,7 +48,8 @@ case class MystemRule(words: Set[String], fieldExtractor: Task => String, thresh
 
     override def predict(task: Task): Double = {
         val normalizedWords = Mystem.normalize(fieldExtractor(task)).toSet
-        normalizedWords.count(normalizedDict).toDouble / normalizedDict.size
+        val result = normalizedWords.count(normalizedDict).toDouble / normalizedDict.size
+        result
     }
 
     override def withThreshold(value: Double): Rule = this.copy(threshold = value)

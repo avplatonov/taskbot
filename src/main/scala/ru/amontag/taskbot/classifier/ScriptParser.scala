@@ -45,6 +45,12 @@ object ScriptParser {
     }
 
     def main(args: Array[String]): Unit = {
-        println(parseWithThresholds("(or:0.5 \n\t(naive-contains \n\t\t(field header) \n\t\t(words мама мыла раму холодной тряпкой)) \n\t(and \n\t\t(morph-contains \n\t\t\t(field description) \n\t\t\t(words мама мыла раму холодной тряпкой)) \n\t\t(naive-contains \n\t\t\t(field header) \n\t\t\t(words aa, vv, 11)))) -> stupid\n\n(morph-contains \n\t\t\t(field description) \n\t\t\t(words мама мыла раму холодной тряпкой)) -> stupid"))
+        parseWithThresholds("(or:0.5 \n\t(naive-contains\n\t\t(field header) \n\t\t(words мама мыла раму холодной тряпкой)) \n\t(and \n\t\t(morph-contains:0.7\n\t\t\t(field description) \n\t\t\t(words мама мыла раму холодной тряпкой)) \n\t\t(naive-contains\n\t\t\t(field header) \n\t\t\t(words aa vv 11)))) -> stupid\n\n(morph-contains:0.7\n\t\t\t(field description) \n\t\t\t(words мама мыла раму холодной тряпкой)) -> stupid")
+            .getOrElse(null).zipWithIndex.foreach({
+            case ((rule, answer), index) =>
+                val task = Task("aa vv 11", "мама мыла раму холодной тряпкой", Nil)
+                if(rule(task))
+                    println(s"$index:${answer.buildAnswer(task)}")
+        })
     }
 }

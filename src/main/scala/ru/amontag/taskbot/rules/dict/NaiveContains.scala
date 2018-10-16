@@ -33,7 +33,8 @@ case class NaiveContains(words: Set[String], fieldExtractor: Task => String, thr
 
     override def predict(task: Task): Double = {
         val text = fieldExtractor(task)
-        words.count(w => text.contains(w)).toDouble / words.size
+        val result = words.count(w => text.contains(w)).toDouble / words.size
+        result
     }
 
     override def withThreshold(value: Double): Rule = copy(threshold = value)

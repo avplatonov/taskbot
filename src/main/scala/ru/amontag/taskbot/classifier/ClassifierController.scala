@@ -25,14 +25,24 @@ import scala.collection.JavaConverters._
 
 @RestController
 class ClassifierController {
+    private var db: ScriptDB with ExportableScript = new ScriptDBOnString("(or:0.5 \n\t(naive-contains\n\t\t(field header) \n\t\t(words мама мыла раму холодной тряпкой)) \n\t(and \n\t\t(morph-contains:0.7\n\t\t\t(field description) \n\t\t\t(words мама мыла раму холодной тряпкой)) \n\t\t(naive-contains\n\t\t\t(field header) \n\t\t\t(words aa vv 11)))) -> stupid\n\n(morph-contains:0.7\n\t\t\t(field description) \n\t\t\t(words мама мыла раму холодной тряпкой)) -> stupid")
+
     @RequestMapping(
         value = Array("/classify"),
         method = Array(RequestMethod.GET)
     )
     @ResponseBody
-    def get(@RequestBody obj: ju.Map[String, AnyRef]): ju.Map[String, AnyRef] = {
-        Map[String, AnyRef]("parsing_result" -> parse(obj).toString).asJava
+    def get(@RequestBody obj: ju.Map[String, AnyRef]): String = {
+        val task = parse(obj)
+        db.get().apply(task).map({case (idx, ans) => s"$idx: $ans"}).mkString("\n")
     }
+
+    @RequestMapping(
+        value = Array("/script"),
+        method = Array(RequestMethod.GET)
+    )
+    @ResponseBody
+    def get(): String = db.export()
 
     private def parse(obj: ju.Map[String, AnyRef]): Task = {
         val header = getOrThrow(obj, "header")
