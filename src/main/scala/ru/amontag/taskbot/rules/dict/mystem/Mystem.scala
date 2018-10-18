@@ -47,14 +47,16 @@ case class MystemRule(words: Set[String], fieldExtractor: Task => String, thresh
     override val name: String = MystemRuleParser.name
 
     override def predict(task: Task): Double = {
-        val normalizedWords = Mystem.normalize(fieldExtractor(task)).toSet
+        val normalizedWords = normalize(task)
         val result = normalizedWords.count(normalizedDict).toDouble / normalizedDict.size
         result
     }
+
+    private def normalize(task: Task): Set[String] = Mystem.normalize(fieldExtractor(task)).toSet
 
     override def withThreshold(value: Double): Rule = this.copy(threshold = value)
 
     override def toString: String = s"MystemRule($normalizedDict, $threshold)"
 
-    override def trace(task: Task): List[_] = List(RuleTrace(name, predict(task)))
+    override def trace(task: Task): List[_] = List(RuleTrace(s"$name-[=>${normalize(task).mkString(", ")}]", predict(task)))
 }

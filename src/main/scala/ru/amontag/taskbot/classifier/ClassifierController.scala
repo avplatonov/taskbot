@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation._
 import ru.amontag.taskbot.rules.RuleTrace
 
 import scala.collection.JavaConverters._
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 @RestController
 class ClassifierController {
@@ -76,8 +76,12 @@ class ClassifierController {
         Try {
             val script = new ScriptDBOnString(body).get()
             db.save(script)
-            true
-        } getOrElse false
+        } match {
+            case Failure(e) => e.printStackTrace()
+                false
+            case Success(_) =>
+                true
+        }
     }
 
 
