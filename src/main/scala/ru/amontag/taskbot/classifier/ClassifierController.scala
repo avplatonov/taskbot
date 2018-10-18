@@ -20,8 +20,10 @@ package ru.amontag.taskbot.classifier
 import java.{util => ju}
 
 import org.springframework.web.bind.annotation._
+import ru.amontag.taskbot.rules.RuleTrace
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 @RestController
 class ClassifierController {
@@ -32,9 +34,30 @@ class ClassifierController {
         method = Array(RequestMethod.GET)
     )
     @ResponseBody
-    def get(@RequestBody obj: ju.Map[String, AnyRef]): String = {
+    def trace(@RequestBody obj: ju.Map[String, AnyRef]): String = {
         val task = parse(obj)
         db.get().apply(task).map({case (idx, ans) => s"$idx: $ans"}).mkString("\n")
+    }
+
+    def toString(list: List[(_, String)]): String = list.map({ case (r, ans) => s"${viewOf(r)} -> $ans" }).mkString("\n")
+
+    def viewOf(x: Any): String = {
+        s"${x match {
+            case t: RuleTrace => t.toString
+            case Nil => ""
+            case l: List[_] => l.map(x => viewOf(x)).mkString("[", " ", "]")
+        }}"
+    }
+
+    @RequestMapping(
+        value = Array("/trace"),
+        method = Array(RequestMethod.GET)
+    )
+    @ResponseBody
+    def get(@RequestBody obj: ju.Map[String, AnyRef]): String = {
+        val task = parse(obj)
+
+        toString(db.get().trace(task))
     }
 
     @RequestMapping(
@@ -43,6 +66,20 @@ class ClassifierController {
     )
     @ResponseBody
     def get(): String = db.export()
+
+    @RequestMapping(
+        value = Array("/script"),
+        method = Array(RequestMethod.POST)
+    )
+    @ResponseBody
+    def set(@RequestBody body: String): Boolean = {
+        Try {
+            val script = new ScriptDBOnString(body).get()
+            db.save(script)
+            true
+        } getOrElse false
+    }
+
 
     private def parse(obj: ju.Map[String, AnyRef]): Task = {
         val header = getOrThrow(obj, "header")

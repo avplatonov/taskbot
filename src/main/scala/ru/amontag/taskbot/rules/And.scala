@@ -34,4 +34,6 @@ case class And(subrules: Seq[Rule], threshold: Double = 1.0) extends Rule {
     override def predict(task: Task): Double = subrules.map(_.predict(task)).product
 
     override def withThreshold(value: Double): Rule = copy(threshold = value)
+
+    override def trace(task: Task): List[_] = List(RuleTrace(name, predict(task)), subrules.map(_.trace(task)).toList)
 }

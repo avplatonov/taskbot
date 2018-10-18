@@ -140,6 +140,10 @@ trait SetOfRulesParser extends Parser {
     protected def buildRule(rules: Seq[Rule]): Either[Throwable, Rule]
 }
 
+case class RuleTrace(ruleName: String, score: Double) {
+    override def toString: String = s"[$ruleName:$score]"
+}
+
 trait Rule {
     val name: String
 
@@ -148,6 +152,8 @@ trait Rule {
     def predict(task: Task): Double
 
     def apply(task: Task): Boolean = predict(task) >= threshold
+
+    def trace(task: Task): List[_]
 
     def withThreshold(value: Double): Rule
 }

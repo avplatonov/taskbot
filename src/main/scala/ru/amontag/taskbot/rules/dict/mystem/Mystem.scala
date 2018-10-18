@@ -20,9 +20,9 @@ package ru.amontag.taskbot.rules.dict.mystem
 import java.io.File
 
 import ru.amontag.taskbot.classifier.Task
-import ru.amontag.taskbot.rules.Rule
 import ru.amontag.taskbot.rules.dict.OnDictRuleParser
 import ru.amontag.taskbot.rules.dict.mystem.holder.Request
+import ru.amontag.taskbot.rules.{Rule, RuleTrace}
 
 
 object Mystem {
@@ -55,4 +55,6 @@ case class MystemRule(words: Set[String], fieldExtractor: Task => String, thresh
     override def withThreshold(value: Double): Rule = this.copy(threshold = value)
 
     override def toString: String = s"MystemRule($normalizedDict, $threshold)"
+
+    override def trace(task: Task): List[_] = List(RuleTrace(name, predict(task)))
 }

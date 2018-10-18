@@ -18,7 +18,7 @@
 package ru.amontag.taskbot.rules.dict
 
 import ru.amontag.taskbot.classifier.Task
-import ru.amontag.taskbot.rules.Rule
+import ru.amontag.taskbot.rules.{Rule, RuleTrace}
 
 object NaiveContainsParser extends OnDictRuleParser {
     override val name: String = "naive-contains"
@@ -38,4 +38,6 @@ case class NaiveContains(words: Set[String], fieldExtractor: Task => String, thr
     }
 
     override def withThreshold(value: Double): Rule = copy(threshold = value)
+
+    override def trace(task: Task): List[_] = List(RuleTrace(name, predict(task)))
 }

@@ -31,7 +31,12 @@ object OrParser extends SetOfRulesParser {
 case class Or(subrules: Seq[Rule], threshold: Double = 1.0) extends Rule {
     override val name: String = "or"
 
-    override def predict(task: Task): Double = subrules.map(_.predict(task)).sum / subrules.size
+    override def predict(task: Task): Double = {
+        val votes = subrules.map(_.predict(task))
+        votes.max
+    }
 
     override def withThreshold(value: Double): Rule = copy(threshold = value)
+
+    override def trace(task: Task): List[_] = List(RuleTrace(name, predict(task)), subrules.map(_.trace(task)).toList)
 }

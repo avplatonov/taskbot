@@ -26,6 +26,13 @@ import ru.amontag.taskbot.rules.Rule
 import scala.io.Source
 
 case class Script(rules: List[(Rule, AnswerTemplate)]) {
+    def trace(task: Task): List[(_, String)] = {
+        rules map {
+            case (rule, template) =>
+                rule.trace(task) -> template.buildAnswer(task)
+        }
+    }
+
     def apply(task: Task): List[(Int, String)] = rules.zipWithIndex filter {
         case ((rule, _), _) => rule.apply(task)
     } map {
